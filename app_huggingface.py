@@ -19,16 +19,13 @@ CORS(app)
 models = {}  # Dict to store multiple models
 processors = {}  # Dict to store multiple processors
 
-# Load models at startup (for gunicorn/production)
-# This ensures models load when the module is imported by gunicorn
-def initialize_models():
-    """Load models when module is imported"""
+# Load models lazily on first request (for gunicorn/production)
+# This prevents blocking during worker startup
+def ensure_models_loaded():
+    """Ensure models are loaded (lazy loading for production)"""
     if not models:  # Only load if not already loaded
+        print("🔄 Models not loaded yet, loading now...")
         load_models()
-
-# Initialize models when running with gunicorn (not in __main__)
-if __name__ != '__main__':
-    initialize_models()
 
 # ============================================================================
 # 🎯 AVAILABLE MODELS - Choose the best for your needs:
@@ -242,6 +239,7 @@ def validate_image(img):
 @app.route('/', methods=['GET'])
 def home():
     """Health check endpoint"""
+    ensure_models_loaded()  # Lazy load models on first request
     return jsonify({
         'status': 'running',
         'service': 'Crop Disease Detection ML Service (Multi-Model)',
@@ -253,6 +251,7 @@ def home():
 @app.route('/health', methods=['GET'])
 def health():
     """Detailed health check"""
+    ensure_models_loaded()  # Lazy load models on first request
     return jsonify({
         'status': 'healthy',
         'mode': MULTI_MODEL_MODE,
@@ -350,6 +349,9 @@ def predict():
                 'error': f'Invalid image: {reason}',
                 'suggestion': 'Please provide a clear, well-lit image of a plant leaf'
             }), 400
+        
+        # Ensure models are loaded
+        ensure_models_loaded()
         
         # Check if any models loaded
         if not models:
