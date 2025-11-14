@@ -53,3 +53,8 @@ training_history.json
 .DS_Store
 Thumbs.db
 
+# Environment variables (secrets)
+.env
+.env.local
+.env.*.local
+
