@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ml-service
+    env: python
+    buildCommand: pip install -r requirements_huggingface.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 180 app_huggingface:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        sync: false
+    healthCheckPath: /health
+    plan: starter
+    # Increase if you need more resources for model loading
+    # plan: standard
+

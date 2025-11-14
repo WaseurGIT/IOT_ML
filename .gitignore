@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Model files (too large for git)
+*.h5
+*.pb
+*.ckpt
+*.pth
+*.pt
+*.onnx
+model/
+models/
+saved_models/
+
+# Dataset (too large for git)
+dataset/
+data/
+*.zip
+*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Training outputs
+class_indices.json
+training_history.json
+*.csv
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
