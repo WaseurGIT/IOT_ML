@@ -362,19 +362,36 @@ def ensemble_predict(img, model_keys):
 def predict():
     """Predict crop disease from image (multi-model support)"""
     try:
+        print("📥 Received prediction request")
+        
         # Check if image is in request
         if 'image' not in request.files:
+            print("❌ No image in request")
             return jsonify({
                 'success': False,
                 'error': 'No image provided'
             }), 400
         
         # Read image
-        image_file = request.files['image']
-        image_bytes = image_file.read()
-        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        
-        print(f"📸 Received image: {img.size}, mode: {img.mode}")
+        try:
+            image_file = request.files['image']
+            image_bytes = image_file.read()
+            
+            if not image_bytes:
+                print("❌ Empty image file")
+                return jsonify({
+                    'success': False,
+                    'error': 'Empty image file'
+                }), 400
+            
+            img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+            print(f"📸 Received image: {img.size}, mode: {img.mode}, size: {len(image_bytes)} bytes")
+        except Exception as e:
+            print(f"❌ Error reading image: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Invalid image file: {str(e)}'
+            }), 400
         
         # Validate image quality
         is_valid, reason = validate_image(img)
@@ -387,15 +404,28 @@ def predict():
             }), 400
         
         # Ensure models are loaded
-        ensure_models_loaded()
+        print("🔄 Ensuring models are loaded...")
+        try:
+            ensure_models_loaded()
+        except Exception as e:
+            print(f"❌ Error ensuring models loaded: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': 'Failed to load models',
+                'details': str(e)
+            }), 500
         
         # Check if any models loaded
         if not models:
-            print("⚠️  No models loaded")
+            print("⚠️  No models loaded after ensure_models_loaded()")
             return jsonify({
                 'success': False,
-                'error': 'No models loaded'
+                'error': 'No models loaded. Please check service logs.'
             }), 500
+        
+        print(f"✅ Models ready: {list(models.keys())}")
         
         # Check if user specified a model (for 'all' mode)
         requested_model = request.form.get('model', None)
@@ -453,8 +483,23 @@ def predict():
                 'confidence': float(confidence)
             }), 400
         
-        # Fetch dynamic guidance from Groq
-        advice = fetch_groq_advice(disease_name, confidence)
+        # Fetch dynamic guidance from Groq (with timeout protection)
+        try:
+            advice = fetch_groq_advice(disease_name, confidence)
+        except Exception as e:
+            print(f"⚠️  Groq API error (using fallback): {e}")
+            # Use fallback advice if Groq fails
+            advice = {
+                "description": f"Detected {disease_name} with {confidence*100:.1f}% confidence.",
+                "severity": "moderate",
+                "remedies": [
+                    "Monitor the plant closely",
+                    "Consult a local agricultural expert",
+                    "Take preventive measures based on the diagnosis"
+                ],
+                "follow_up": "Continue monitoring the plant's condition.",
+                "source": "fallback"
+            }
         
         # Build response
         response = {
@@ -478,10 +523,26 @@ def predict():
         print(f"❌ Error during prediction: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': f'Prediction failed: {str(e)}'
-        }), 500
+        # Return a more helpful error message
+        error_msg = str(e)
+        if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+            return jsonify({
+                'success': False,
+                'error': 'Prediction timed out. The model may be loading. Please try again in a few seconds.',
+                'suggestion': 'Wait 10-15 seconds and retry the request'
+            }), 504  # Gateway Timeout
+        elif "memory" in error_msg.lower() or "out of memory" in error_msg.lower():
+            return jsonify({
+                'success': False,
+                'error': 'Service out of memory. Please try again later.',
+                'suggestion': 'The service may need to restart. Wait 30 seconds and retry.'
+            }), 503  # Service Unavailable
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Prediction failed: {error_msg}',
+                'suggestion': 'Please check the image format and try again'
+            }), 500
 
 if __name__ == '__main__':
     print("="*70)
