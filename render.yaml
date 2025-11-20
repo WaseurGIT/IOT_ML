@@ -4,7 +4,7 @@ services:
     env: python
     rootDir: ml_service
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 300 --max-requests 1000 --max-requests-jitter 100 app:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
