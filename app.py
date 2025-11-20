@@ -78,6 +78,24 @@ def ensure_models_loaded():
         finally:
             _models_loading = False
 
+# Automatically kick off background loading (prevents Render 502 during probes)
+AUTO_LOAD_MODELS = os.getenv('AUTO_LOAD_MODELS', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on'
+)
+
+
+def _background_model_loader():
+    try:
+        ensure_models_loaded()
+        print("✅ Background model loading completed")
+    except Exception as e:
+        print(f"❌ Background model loading failed: {e}")
+
+
+if AUTO_LOAD_MODELS:
+    threading.Thread(target=_background_model_loader, daemon=True).start()
+    print("⚙️ Background model loading thread started")
+
 # BD Crop Disease Model Configuration
 MODEL_REPO_ID = "Saon110/bd-crop-vegetable-plant-disease-model"
 MODEL_FILENAME = "crop_veg_plant_disease_model.pth"
